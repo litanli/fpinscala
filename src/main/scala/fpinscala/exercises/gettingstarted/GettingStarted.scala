@@ -1,27 +1,34 @@
-package fpinscala.exercises.gettingstarted
+package fpinscala.exercises.gettingstarted  // declares package fpinscala.exercises.gettingstarted
+// cd ~/fpinscala; scala-cli console .
+// import fpinscala.exercises.gettingstarted.PolymorphicFunctions.isSorted
+
+import javax.net.ssl.TrustManager
 
 // A comment!
 /* Another comment */
 /** A documentation comment */
-object MyProgram:
+object MyProgram: // Singleton (simultaneously declares a class and its only instance)
   def abs(n: Int): Int =
     if n < 0 then -n
     else n
 
-  private def formatAbs(x: Int) =
-    val msg = "The absolute value of %d is %d"
-    msg.format(x, abs(x))
+  // Can only be called by other members of MyProgram (can't be called outside object MyProgram)
+  private def formatAbs(x: Int) = 
+    val msg = "The absolute value of %d is %d"  // val = immutable variable
+    msg.format(x, abs(x))  // Returns a string
 
-  @main def printAbs: Unit =
+  // @main indicates entry point. Return type Unit = void hints that the method 
+  // has a side effect
+  @main def printAbs: Unit = // Outer shell/procedure/impure function calls pure functional core
     println(formatAbs(-42))
 
-  // A definition of factorial, using a local, tail recursive function
+  // A definition of factorial, using a local, tail recursive function - compiles 
+  // recursion to iterative loop (doesn't consume stack frames)
   def factorial(n: Int): Int =
-    @annotation.tailrec
+    @annotation.tailrec  // Raise compile error if unable to eliminate tail calls of the function
     def go(n: Int, acc: Int): Int =
       if n <= 0 then acc
-      else go(n-1, n*acc)
-
+      else go(n-1, n*acc)  // Recursive call is last op of function/in tail position. Constrast with 1 + go(n - 1, n*acc)
     go(n, 1)
 
   // Another implementation of `factorial`, this time with a `while` loop
@@ -32,8 +39,12 @@ object MyProgram:
     acc
 
   // Exercise 1: Write a function to compute the nth fibonacci number
-
-  def fib(n: Int): Int = ???
+  def fib(n: Int): Int = 
+    @annotation.tailrec
+    def go(n: Int, prev: Int, cur: Int): Int =
+      if n == 0 then prev
+      else go(n-1, cur, prev + cur)
+    go(n, 0, 1) 
 
   // This definition and `formatAbs` are very similar..
   private def formatFactorial(n: Int) =
@@ -55,6 +66,10 @@ object FormatAbsAndFactorial:
   @main def printAbsAndFactorial: Unit =
     println(formatResult("absolute value", -42, abs))
     println(formatResult("factorial", 7, factorial))
+
+
+
+
 
 object TestFib:
 
@@ -120,12 +135,23 @@ object PolymorphicFunctions:
     loop(0)
 
   // Exercise 2: Implement a polymorphic function to check whether
-  // an `Array[A]` is sorted
-  def isSorted[A](as: Array[A], gt: (A, A) => Boolean): Boolean = ???
+  // an `Array[A]` is sorted increasing. gt comparator returns true if first element is gt second.
+  // cd ~/fpinscala; scala-cli console .
+  // import fpinscala.exercises.gettingstarted.PolymorphicFunctions.isSorted
+  // isSorted(Array(1, 2, 3), _ > _) True
+  // isSorted(Array(3, 2, 1, _ < _) True
+  def isSorted[A](as: Array[A], gt: (A, A) => Boolean): Boolean =
+    @annotation.tailrec
+    def loop(n: Int): Boolean = 
+      if n >= as.length - 1 then true
+      else if gt(as(n), as(n + 1)) then false
+      else loop(n + 1)
+    loop(0)
+
 
   // Polymorphic functions are often so constrained by their type
   // that they only have one implementation! Here's an example:
-
+  // Lock in a. 
   def partial1[A,B,C](a: A, f: (A, B) => C): B => C =
     (b: B) => f(a, b)
 
@@ -134,13 +160,14 @@ object PolymorphicFunctions:
   // Note that `=>` associates to the right, so we could
   // write the return type as `A => B => C`
   def curry[A,B,C](f: (A, B) => C): A => (B => C) =
-    ???
+    a => (b => f(a, b))
 
   // NB: The `Function2` trait has a `curried` method already
 
   // Exercise 4: Implement `uncurry`
   def uncurry[A,B,C](f: A => B => C): (A, B) => C =
-    ???
+    (a, b) => f(a)(b)
+
 
   /*
   NB: There is a method on the `Function` object in the standard library,
@@ -155,5 +182,5 @@ object PolymorphicFunctions:
   // Exercise 5: Implement `compose`
 
   def compose[A,B,C](f: B => C, g: A => B): A => C =
-    ???
+    a => f(g(a))
 
