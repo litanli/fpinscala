@@ -7,15 +7,38 @@ enum Option[+A]:
   case Some(get: A)
   case None
 
-  def map[B](f: A => B): Option[B] = ???
+  // Use map when f returns a plain value, flatMap when f returns a wrapped value.
 
-  def getOrElse[B>:A](default: => B): B = ???
+  // Apply f if the Option is not None. Transforms the value INSIDE a container 
+  // (Some). 
+  // E.g. Some(2).map(x => x * 2) returns Some(4)
+  //      None.map(x => x * 2) returns None
+  //      Some(2).map(x => Some(x * 2)) returns Some(Some(4)). If f already returns
+  //      an Option container, you get a nested Option, which is almost never
+  //      what you want. Use flatMap to flatten it out.
+  def map[B](f: A => B): Option[B] = this match
+    case Some(a) => Some(f(a))
+    case None => None
+  
+  def getOrElse[B>:A](default: => B): B = this match
+    case Some(a) => a  // flatten/unpack
+    case None => default
+  
+  // Apply f, which may fail, to the Option if not None. Transforms the value
+  // into another container, then flattens the result.
+  // E.g. Some(2).flatMap(x => Some(x * 2)) returns Some(4)
+  def flatMap[B](f: A => Option[B]): Option[B] = 
+    // map(f) is of type Option[Option[B]]
+    // For Some, it's Some(Some())
+    map(f).getOrElse(None)
 
-  def flatMap[B](f: A => Option[B]): Option[B] = ???
+  // Don't eval ob unless needed
+  def orElse[B>:A](ob: => Option[B]): Option[B] = 
+    map(Some(_)).getOrElse(ob)
 
-  def orElse[B>:A](ob: => Option[B]): Option[B] = ???
-
-  def filter(f: A => Boolean): Option[A] = ???
+  // Convert Some to None if the value doesn't satify f
+  def filter(f: A => Boolean): Option[A] = 
+    flatMap(a => if (f(a)) Some(a) else None)
 
 object Option:
 
@@ -36,10 +59,25 @@ object Option:
     if xs.isEmpty then None
     else Some(xs.sum / xs.length)
 
-  def variance(xs: Seq[Double]): Option[Double] = ???
+  def variance(xs: Seq[Double]): Option[Double] = 
+    mean(xs).flatMap(m => mean(xs.map(x => math.pow(x - m, 2))))
 
-  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = ???
+  // Combines two Option values using a finary function. if either Option value
+  // is None, then return value is None.
+  def map2[A,B,C](a: Option[A], b: Option[B])(f: (A, B) => C): Option[C] = 
+    a.flatMap(aa => b.map(bb => f(aa, bb)))
 
-  def sequence[A](as: List[Option[A]]): Option[List[A]] = ???
-
-  def traverse[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] = ???
+  // Combines list of Options into one Option containing list of all Some values
+  // from original list. If any None, result of whole function is None
+  def sequence[A](as: List[Option[A]]): Option[List[A]] = as match
+    case Nil => Some(Nil)
+    case h::t => h.flatMap(hh => sequence(t).map(hh :: _))
+  
+  // Map over a list using a function that might fail, return None if applying 
+  // it to any element of the list returns None. Doing so with sequence(as.map(a => f(s)))
+  // traverses the list twice, first to map then to sequence. Do so with one list
+  // traversal.
+  def traverse[A, B](as: List[A])(f: A => Option[B]): Option[List[B]] = as match
+    case Nil => Some(Nil)
+    case h::t => map2(f(h), traverse(t)(f))(_ :: _)
+  
